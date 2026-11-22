@@ -19,7 +19,13 @@ def _write_atomic(path, text):
             f.write(text)
             f.flush()
             os.fsync(f.fileno())
+        os.chmod(tmp_path, 0o644)
         os.replace(tmp_path, path)
+        dir_fd = os.open(directory, os.O_RDONLY)
+        try:
+            os.fsync(dir_fd)
+        finally:
+            os.close(dir_fd)
     except BaseException:
         try:
             os.unlink(tmp_path)
@@ -36,7 +42,35 @@ ENTRY = (
     "Real buyers pay today; no luck, no human needed."
 )
 
-OUTPUT_PATH = "/output/entry.txt"
+def verify_output(path, text):
+    """Read the written file back and confirm it is valid and world-readable.
+
+    Raises loudly if anything is wrong: missing file, wrong content, entry
+    outside the 1-280 code-point rule, or a mode the grader cannot read.
+    """
+    if not os.path.isfile(path):
+        raise RuntimeError(f"output file missing after write: {path}")
+    with open(path, "r", encoding="utf-8") as f:
+        actual = f.read()
+    if actual != text:
+        raise RuntimeError("output file content differs from the planned entry")
+    if not 1 <= len(actual) <= 280:
+        raise ValueError(
+            f"written entry must be 1-280 code points, got {len(actual)}"
+        )
+    if not actual.strip():
+        raise ValueError("written entry must not be only whitespace")
+    mode = os.stat(path).st_mode & 0o777
+    if mode & 0o004 == 0:
+        raise RuntimeError(
+            f"output file {path} is not world-readable (mode {mode:03o}); "
+            "the grader collects it as a different user"
+        )
+
+
+OUTPUT_PATH = os.path.join(
+    os.environ.get("MAKEFUN_OUTPUT_DIR", "/output"), "entry.txt"
+)
 
 
 def main():
@@ -47,6 +81,7 @@ def main():
     if not ENTRY.strip():
         raise ValueError("entry must not be only whitespace")
     _write_atomic(OUTPUT_PATH, ENTRY)
+    verify_output(OUTPUT_PATH, ENTRY)
 
 
 if __name__ == "__main__":

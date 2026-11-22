@@ -6,6 +6,7 @@
 
 An entry for the make.fun competition
 [The plan make.fun will carry out in public](https://make.fun/competitions/the-plan-make-fun-will-carry-20261122-2138).
+Bounty: https://make.fun/bounty/the-plan-make-fun-will-carry-20261122-2138
 
 ## What it does
 
